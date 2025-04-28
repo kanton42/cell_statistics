@@ -138,6 +138,7 @@ def test_euler_mem(params = np.array([100, 5000, 60, 1, 1]), h=0.0001, tmax=1000
 # optimization for persistent random walk (PRW)
 
 def vacf_noise_prw(tm, B, sig_loc, t, msd=msd_prw):
+    # theoretical prediction for VACF from persistent random walk model at discrete time points t for Gaussian localization noise of width sig_loc
     msd_theo = msd(tm,B,t)
     msd_noise = np.zeros(len(msd_theo))
     msd_noise[1:] = msd_theo[1:] + 2 * sig_loc**2
@@ -155,6 +156,7 @@ def vacf_noise_prw(tm, B, sig_loc, t, msd=msd_prw):
     return vacf_noisy
 
 def sigma_vacf_prw(args, vacf_exp, t, msd=msd_prw):
+    # residual array for optimization
     #args of the form [tau_m,D,sig_loc]
     residual_vec = vacf_noise_prw(args[0],args[1],args[2],t,msd=msd) - vacf_exp
     if np.any(np.isinf(residual_vec)) or np.any(np.isnan(residual_vec)):
@@ -162,32 +164,29 @@ def sigma_vacf_prw(args, vacf_exp, t, msd=msd_prw):
     return residual_vec
 
 def optimize_vacf_prw(vacf_exp, dt=0.5, tm_max=1e5, tm_min=0.001, Bmax=1000, loc_errmax=10, msd_fun=msd_prw, errmin=0.001):
-
-    # t=np.arange(0, dt*(len(vacf_exp)+0.5), dt)
+    # fit a single VACF by PRW model with localization noise
     t = np.arange(0, len(vacf_exp) + 1) * dt
 
-    tm0=np.random.rand() * (tm_max - tm_min) + tm_min #number between min and max
-    err0=np.random.rand() * (loc_errmax - errmin) + errmin
+    tm0 = np.random.rand() * (tm_max - tm_min) + tm_min #number between min and max
+    err0 = np.random.rand() * (loc_errmax - errmin) + errmin
     if err0 < errmin:
-        err0 += errmin
-    # B0=vacf_exp[0]
-    # if B0>Bmax:
-    #     B0=np.random.rand()*Bmax
+        err0 += errmin # security if something went wrong before
     B0 = np.random.rand() * Bmax
     if B0 < 0.01:
         B0 += 0.01
     if tm0 < tm_min:
         tm0 += tm_min
-    x0=np.array([tm0, B0, err0])
-    lb=np.array([tm_min, 0.01, errmin])
-    upb=np.array([tm_max, Bmax, loc_errmax])
+    x0 = np.array([tm0, B0, err0])
+    lb = np.array([tm_min, 0.01, errmin])
+    upb = np.array([tm_max, Bmax, loc_errmax])
     
-    res=least_squares(lambda x: sigma_vacf_prw(x,vacf_exp,t,msd=msd_fun), x0,
+    res = least_squares(lambda x: sigma_vacf_prw(x,vacf_exp,t,msd=msd_fun), x0,
                                bounds=(lb,upb))
 
     return res.x, res.cost
 
 def optimize_all_cells_prw(vacf_all, av=10, dt=0.5, tm_max=1e5, tm_min=0.001, Bmax=10000, loc_errmax=10, msd_func=msd_prw, index=10, errmin=0.001, threads=1):
+    # fit multiple VACFs each by a PRW model with localization noise
     ntrj=len(vacf_all[:,0])
     opt_params=np.zeros((ntrj,3))
     av_params=np.zeros((ntrj,3))
@@ -212,16 +211,16 @@ def optimize_all_cells_prw(vacf_all, av=10, dt=0.5, tm_max=1e5, tm_min=0.001, Bm
         cost_ar[i]=costb
         opt_params[i,:]=resopt
         av_params[i,:]=avres
-
         
     return opt_params, cost_ar, av_params, av_cost_ar
 
 
 ###################################################################################################################
-# simulate different variances
+# simulate different variances for PRW model
 
 def sim_var_prw(exp_distr, scaling, n_realization, n_steps, dt, path_out, name, min_vals, max_vals, av=100, index_vacf=10, threads=16, mean=False, dim=1, small_sim_step=False):
     cond_err = filt_distr(exp_distr, min_vals[-1], max_vals[-1], max_val=[1e50, 1e50], min_factor=1.5, max_factor=0.99) # filter non-physical fit params
+    # takes exp_distr parameters and scales the covariance according to scaling then simulate PRW model using a Gaussian parameter distribution with the scaled covariance
     distr_exp = exp_distr[cond_err, :]
     mean_data = np.mean(distr_exp, axis=0)
     mean_str = ''
@@ -290,17 +289,13 @@ def sim_var_prw(exp_distr, scaling, n_realization, n_steps, dt, path_out, name, 
         
         np.save(path_out + '/' + name + str(int(i)) + mean_str + '_idx' + str(int(index_vacf)) + '_var' + scale_str + '_av' + str(int(av)), distr_optis) # + '_steps' + str(int(n_steps))
         print(i)
-    
-    # plot_distr_sim(distr_exp, distr_optis, max_vals, min_vals, name + '_var' + scale_str, filt_err=True)
-    # if scaling != 1 and scaling != 0:
-    #     plot_distr_sim(distr_exp, sim_data, max_vals, min_vals, name + '_var' + scale_str +' orig distr', filt_err=True)
+
         
 
 ###################################################################################################################
 # simulate scaled distribution around median/mean
 
 def sim_scale_prw(exp_distr, scaling, n_realization, n_steps, dt, path_out, name, min_vals, max_vals, av=100, index_vacf=10, threads=16, mean=False, dim=1, small_sim_step=False):
-    #cond_err = np.where(exp_distr[:,2] > 1.5 * min_vals[-1])[0] # filter non-physical fit params
     #scale whole distribution instead of assuming Gauss
     cond_err = filt_distr(exp_distr, min_vals[-1], max_vals[-1], max_val=[1e50, 1e50], min_factor=1.5, max_factor=0.99)# filter non-physical fit params
     distr_exp = exp_distr[cond_err, :]
@@ -366,10 +361,6 @@ def sim_scale_prw(exp_distr, scaling, n_realization, n_steps, dt, path_out, name
         
         np.save(path_out + '/' + name + str(int(i)) + mean_str + '_idx' + str(int(index_vacf)) + '_var' + scale_str + '_av' + str(int(av)), distr_optis) # + '_steps' + str(int(n_steps))
         print(i)
-
-    # plot_distr_sim(distr_exp, distr_optis, max_vals, min_vals, name + '_var' + scale_str, filt_err=True)
-    # if scaling != 1 and scaling != 0:
-    #     plot_distr_sim(distr_exp, sim_data, max_vals, min_vals, name + '_var' + scale_str +' orig distr', filt_err=True)
         
 
 def lens_rows_masked_matrix(matrix, vacf=True):
@@ -908,9 +899,6 @@ def sim_var_diffusion(exp_distr, scaling, n_realization, n_steps, dt, path_out, 
         np.save(path_out + '/' + name + str(int(i)) + mean_str + '_idx' + str(int(index_vacf)) + '_var' + scale_str + '_av' + str(int(av)), distr_optis) # + '_steps' + str(int(n_steps))
         #print(i)
 
-    # plot_distr_sim(distr_exp, distr_optis, max_vals, min_vals, name + '_var' + scale_str, labels=[r'$D$', r'$\sigma_{\rm{loc}}$'], units=[r' [$\mu m^2/s$]', r' [$\mu m$]'], filt_err=filt_err)
-    # if scaling != 1 and scaling != 0:
-    #     plot_distr_sim(distr_exp, sim_data, max_vals, min_vals, name + '_var' + scale_str +' orig distr', labels=[r'$D$', r'$\sigma_{\rm{loc}}$'], units=[r' [$\mu m^2/s$]', r' [$\mu m$]'], filt_err=filt_err)
         
 
 ###################################################################################################################
@@ -964,10 +952,6 @@ def sim_scale_diffusion(exp_distr, scaling, n_realization, n_steps, dt, path_out
         
         np.save(path_out + '/' + name + str(int(i)) + mean_str + '_idx' + str(int(index_vacf)) + '_var' + scale_str + '_av' + str(int(av)), distr_optis) # + '_steps' + str(int(n_steps))
         #print(i)
-
-    # plot_distr_sim(distr_exp, distr_optis, max_vals, min_vals, name + '_var' + scale_str, labels=[r'$D$', r'$\sigma_{\rm{loc}}$'], units=[r' [$\mu m^2/s$]', r' [$\mu m$]'], filt_err=filt_err)
-    # if scaling != 1 and scaling != 0:
-    #     plot_distr_sim(distr_exp, sim_data, max_vals, min_vals, name + '_var' + scale_str +' orig distr', labels=[r'$D$', r'$\sigma_{\rm{loc}}$'], units=[r' [$\mu m^2/s$]', r' [$\mu m$]'], filt_err=filt_err)
         
 
 
@@ -1017,8 +1001,6 @@ def optimize_vacf_mem(vacf_exp, max_vals, min_vals, dt=0.5, msd_fun=msd_osc_sinc
                 max_vals[-2 - ind_rel] = max_vals[-2 - ind_rel] * vacf_exp[0] # all amplitudes are bounded individually and relatively to the data point C_vv(0)
                 min_vals[-2 - ind_rel] = min_vals[-2 - ind_rel] * vacf_exp[0]
         # last parameter is localization noise and previous parameter is square velocity, for which bounds are individually extimated by experimental B
-        # for noneq cell speed is not necessarily independent parameter, but sum of amplitudes - then set B_param to False or think about how to rewrite MSD function to include B and keep number of parameters fixed (for instance B * (a * term1 + (1-a) * term2) insted of a * term1 + b term2)
-    # t = np.arange(0, dt * (len(vacf_exp) + 0.5), dt)
     t = np.arange(0, len(vacf_exp) + 1) * dt
 
     lb = np.array(min_vals)
@@ -1041,7 +1023,6 @@ def optimize_all_cells_mem(vacf_all, max_vals, min_vals, av=10, dt=0.5, msd_func
         vacf = vacf[:index]  #vacf[:int(len(vacf)/2)]
 
         res_cost_list = Parallel(n_jobs=threads)(delayed(optimize_vacf_mem)(vacf, max_vals, min_vals, dt=dt, msd_fun=msd_func, B_param=B_param, rel_ampl=rel_ampl) for j in range(av))
-        # res_cost_list = [optimize_vacf_mem(vacf, max_vals, min_vals, dt=dt, msd_fun=msd_func, B_param=B_param) for j in range(av)]
 
         results = np.array(res_cost_list, dtype=object)[:,0]
         costs = np.array(res_cost_list, dtype=object)[:,1]    
@@ -1151,9 +1132,6 @@ def cre_trjs_prw(ltrjs, taud, taum, dt, loc_err, h=0.01):
         skipi = int(skipi)
         
         tmax = ltrjs[i] * skipi * hu
-        #x=euler(2,h,tmax,tau_m,0,f)
-        #arr[i,:]=x
-        #x=x[::skip]
         x = euler(2, hu, tmax , tau_ms[i], 0, f)[::skipi] #tmax+dt
         x += np.random.normal(0, loc_errs[i], len(x))
         xall[i,:len(x)] = x
@@ -1587,8 +1565,6 @@ def sim_var_osc_sincos_locfit(distr_exp, scaling, n_realization, n_steps, dt, pa
             optis, costs, avres, avcosts = optimize_all_cells_osc_av(vacf_all, dt, max_vals=max_vals, min_vals=min_vals, av=av, msd_fun=msd_osc_analytic, index=index_vacf, threads=threads)
         else:
             optis, costs, avres, avcosts = optimize_all_cells_osc_av_mid(vacf_all, dt, max_vals=max_vals, min_vals=min_vals, av=av, msd_fun=msd_osc_analytic, index=index_vacf, threads=threads)
-        # cond_err = filt_distr(optis, min_vals[-1], max_vals[-1], max_val=[1e50, 1e50], min_factor=1, max_factor=1) # filter non-physical fit params
-        # optis = optis[cond_err, :]
 
         np.save(path_out + '/locfit' + name + str(int(i)) + mean_str + '_idx' + str(int(index_vacf)) + '_var' + scale_str + '_av' + str(int(av)), optis) # + '_steps' + str(int(n_steps))
         print(i)
@@ -1732,28 +1708,6 @@ def log_smoothing(data, n): #pref, log_fac):
 
     return mid_points, smooth_data
 
-def rheology_from_msd(dict_data, bead_radius, dt, short_fac=3, smooth=0):
-    g1 = combine_fun(lambda x: mason_method(np.arange(1, len(x)) * dt, 1.5e-12*x[1:], a=bead_radius, T=25)[2], dict_data['msd'], lmodified=2) # multiply msd by 1.5 to get value that one would have for 3D
-    g2 = combine_fun(lambda x: mason_method(np.arange(1, len(x)) * dt, 1.5e-12*x[1:], a=bead_radius, T=25)[3], dict_data['msd'], lmodified=2)
-    freqs = combine_fun(lambda x: mason_method(np.arange(1, len(x)) * dt, 1.5e-12*x[1:], a=bead_radius, T=25)[1], dict_data['msd'], lmodified=2)
-    # alpha_test, freq_test, g1_test, g1_test  = combine_fun_output(lambda x: mason_method(np.arange(1, len(x)) * dt, x[1:], a=bead_radius, T=25), beads_dict_short['msd'], lmodified=2, outputs=4)
-    # print(g1.shape)
-
-    modified_len = len(g1[0,:]) - len(g1[0,:])//short_fac
-    g1 = combine_fun(lambda x: x[:len(x)//short_fac], g1, lmodified=modified_len)
-    g2 = combine_fun(lambda x: x[:len(x)//short_fac], g2, lmodified=modified_len)
-    freqs = combine_fun(lambda x: x[:len(x)//short_fac], freqs, lmodified=modified_len)
-    # print(g1.shape)
-
-    if smooth > 0:
-        modified_len_smooth = len(g1[0,:]) - smooth
-        freqs_smooth = combine_fun2(lambda x, y: y[log_smoothing(x, smooth)[0]], g1, freqs, lmodified=modified_len_smooth)
-        g1_smooth = combine_fun(lambda x: log_smoothing(x, smooth)[1], g1, lmodified=modified_len_smooth)
-        g2_smooth = combine_fun(lambda x: log_smoothing(x, smooth)[1], g2, lmodified=modified_len_smooth)
-
-        return freqs_smooth, g1_smooth, g2_smooth
-    else:
-        return freqs, g1, g2
     
 ############################################################################################################################################
 

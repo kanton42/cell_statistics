@@ -164,18 +164,6 @@ def correlation(a, b=None, subtract_mean=False):
     #res = np.fft.ifft(sf)
     return np.real(np.fft.ifft(sf)[:len(a)])/np.array(range(len(a),0,-1))
 
-def msd_fft(x):
-    mu = np.mean(x)
-    N = len(x)
-    D = np.square(x - mu) #.sum(axis=1) 
-    D = np.append(D, 0) 
-    pos_corr = correlation(x - mu)
-    Q = 2 * np.sum(D)
-    running_av_sq = np.zeros(N)
-    for m in range(N):
-        Q = Q - D[m-1] - D[N-m]
-        running_av_sq[m] = Q / (N - m)
-    return running_av_sq - 2 * pos_corr
 
 def msd_fast(x,y=[],z=[], less_memory=False):
     if less_memory:
@@ -343,21 +331,25 @@ def weighted_av(xall,lmod=0):
 
 
 def scale_v(vd):
-    return (vd-np.mean(vd))/np.std(vd)
+    # subtract mean and divide by standard deviation to test Gaussianity
+    return (vd - np.mean(vd)) / np.std(vd)
 
 def cut_fun(x,cut_ind=20,cut_end=-1):
+    # to cut part of a trajectory
     return x[cut_ind:cut_end]
 
 def msd_prw(tm,B,t):
+    # analytic MSD for persistent random walk, i.e. effective kernel Gamma(t)=2delta(t)/tm
     #td=1/D
     #tm=tau_m*td
-    return 2*B*tm*(t-tm*(1-np.exp(-t/tm)))
+    return 2 * B * tm * (t - tm * (1 - np.exp(-t/tm)))
 
 
 ############################################################
 # noisy MSD, VACF for persistent random walk
 
 def msd_prw_noise(tm, B, sig_loc, t):
+    # theoretical prediction for MSD at discrete time steps with Gaussian localization noise of width sig_loc
     #td=1/D
     #tm=tau_m*td
     msd_theo = msd_prw(tm,B,t)
@@ -368,6 +360,7 @@ def msd_prw_noise(tm, B, sig_loc, t):
 
 
 def vacf_noise_prw(tm, B, sig_loc, t, msd=msd_prw):
+    # theoretical prediction for VACF at discrete time steps with Gaussian localization noise of width sig_loc
     msd_theo = msd(tm,B,t)
     msd_noise = np.zeros(len(msd_theo))
     msd_noise[1:] = msd_theo[1:] + 2*sig_loc**2

@@ -5,6 +5,7 @@ import numpy as np
 
 
 def roots_osc_sincos(a, b, f, tau):
+    # roots for MSD integral poles for kernel Gamma = 2a delta(t) + b e^{-t/tau} ( cos(f t) + sin(f t)/(f tau) )
     k1 = -2 * (1 + f**2 * tau**2) * (a + 2 * b * tau + a * f**2 * tau**2)
     k2 = 4 * a * tau**2 * (-1 + f**2 * tau**2)
     k3 = -2 * a * tau**4
@@ -22,7 +23,7 @@ def roots_osc_sincos(a, b, f, tau):
 
 def msd_osc_sincos(a, b, f, tau, B, t):
     # due to sin(f)/f term limit of f-->0 does not yield simple exponential behavior in the limit, but larger friction in long time limit
-    # kernel of the form: a * delta(t) + b * (cos(ft) + sin(ft)/(f*tau)) * exp(-t/tau)
+    # kernel of the form: 2a * delta(t) + b * (cos(ft) + sin(ft)/(f*tau)) * exp(-t/tau)
     r_i, k_i, c_i = roots_osc_sincos(a, b, f, tau)
 
     summe = 0
@@ -35,7 +36,7 @@ def msd_osc_sincos(a, b, f, tau, B, t):
 
 def vacf_osc_sincos(a, b, f, tau, B, t):
     # due to sin(f)/f term limit of f-->0 does not yield simple exponential behavior in the limit, but larger friction in long time limit
-    # kernel of the form: a * delta(t) + b * (cos(ft) + sin(ft)/(f*tau)) * exp(-t/tau)
+    # kernel of the form: 2a * delta(t) + b * (cos(ft) + sin(ft)/(f*tau)) * exp(-t/tau)
     r_i, k_i, c_i = roots_osc_sincos(a, b, f, tau)
 
     summe = 0
@@ -49,6 +50,7 @@ def vacf_osc_sincos(a, b, f, tau, B, t):
 
 
 def roots_osc_sincos_harm(a, b, f, tau, K):
+    # roots for MSD integral poles in harmonic potential for kernel Gamma = 2a delta(t) + b e^{-t/tau} ( cos(f t) + sin(f t)/(f tau) )
     k1 = -2 * (1 + f**2 * tau**2) * (a + 2 * b * tau + a * f**2 * tau**2)
     k2 = 4 * a * tau**2 * (-1 + f**2 * tau**2)
     k3 = -2 * a * tau**4
@@ -64,7 +66,7 @@ def roots_osc_sincos_harm(a, b, f, tau, K):
 
 def msd_osc_sincos_harm(a, b, f, tau,  K, B, t):
     # due to sin(f)/f term limit of f-->0 does not yield simple exponential behavior in the limit, but larger friction in long time limit
-    # kernel of the form: a * delta(t) + b * (cos(ft) + sin(ft)/(f*tau)) * exp(-t/tau)
+    # kernel of the form: 2a * delta(t) + b * (cos(ft) + sin(ft)/(f*tau)) * exp(-t/tau)
     r_i, k_i, c_i = roots_osc_sincos_harm(a, b, f, tau, K)
 
     summe = 0
@@ -76,7 +78,7 @@ def msd_osc_sincos_harm(a, b, f, tau,  K, B, t):
 
 def vacf_osc_sincos_harm(a, b, f, tau,  K, B, t):
     # due to sin(f)/f term limit of f-->0 does not yield simple exponential behavior in the limit, but larger friction in long time limit
-    # kernel of the form: a * delta(t) + b * (cos(ft) + sin(ft)/(f*tau)) * exp(-t/tau)
+    # kernel of the form: 2a * delta(t) + b * (cos(ft) + sin(ft)/(f*tau)) * exp(-t/tau)
     r_i, k_i, c_i = roots_osc_sincos_harm(a, b, f, tau, K)
 
     summe = 0
@@ -99,7 +101,7 @@ def pacf_osc_sincos_harm(a, b, f, tau,  K, B, t):
 
 def msd_osc_cos(a, b, f, tau, B, t):
     # tested that same result is obtained when roots are numerically approximated instead of using analytic expression for roots
-    # kernel of the form: a * delta(t) + b * cos(ft)  * exp(-t/tau)
+    # kernel of the form: 2a * delta(t) + b * cos(ft)  * exp(-t/tau)
     a = np.array(a, dtype=np.float128)
     b = np.array(b, dtype=np.float128)#float(b)
     f = np.array(f, dtype=np.float128)#float(f)
@@ -189,7 +191,7 @@ def vacf_osc_analytic(a, b, f, tau, B, t):
 
 
 def pacf_osc_cos(a, b, f, tau, B, t):
-    # test whether same result is obtained when roots are numerically approximated instead of using analytic expression for roots
+    # tested that same result is obtained when roots are numerically approximated instead of using analytic expression for roots
     a = np.array(a, dtype=np.float128)
     b = np.array(b, dtype=np.float128)#float(b)
     f = np.array(f, dtype=np.float128)#float(f)
@@ -326,7 +328,7 @@ tau**8.)))+(mysqrt(aux11))));
 
 
 ####################################################################
-#delta plus decaying oscilation a d(t) + b e**-t/tau cos(f t) MSD
+#delta plus decaying oscilation 2a d(t) + b e**-t/tau cos(f t) MSD
 
 def msd_osc_analytic(a, b, f, tau, B, t):
     a = np.array(a, dtype=np.float128)
